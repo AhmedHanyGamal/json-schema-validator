@@ -1,0 +1,23 @@
+{
+  "name": "json-schema-validator",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/AhmedHanyGamal/json-schema-validator#readme",
+  "bugs": {
+    "url": "https://github.com/AhmedHanyGamal/json-schema-validator/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AhmedHanyGamal/json-schema-validator.git"
+  },
+  "license": "MIT",
+  "author": "AhmedHanyGamal",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
+  }
+}
