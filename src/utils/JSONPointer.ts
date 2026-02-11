@@ -2,12 +2,11 @@ export class JSONPointer {
     private segments: string[] = [];
 
     push(segment: string): void {
-        this.segments.push(unescape(segment));
+        this.segments.push(segment);
     }
 
     pop(): string | undefined {
-        const segment = this.segments.pop();
-        return segment ? escape(segment) : segment;
+        return this.segments.pop();
     }
 
     toString(): string {
@@ -38,12 +37,11 @@ export class AbsoluteJSONPointer {
     private fragmentSegments: string[] = [];
 
     push(segment: string): void {
-        this.fragmentSegments.push(unescape(segment));
+        this.fragmentSegments.push(segment);
     }
 
     pop(): string | undefined {
-        const segment = this.fragmentSegments.pop();
-        return segment ? escape(segment) : segment;
+        return this.fragmentSegments.pop();
     }
 
     toString(): string {
