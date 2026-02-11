@@ -3,7 +3,7 @@ import { JSONPointer, AbsoluteJSONPointer } from "./utils/JSONPointer.js";
 
 
 export interface KeywordHandler {
-    (schema: unknown, instance: JSONValue, context: ValidationContext): void;
+    (schema: JSONValue, instance: JSONValue, context: ValidationContext): void;
 }
 
 export interface KeywordRegistry {
