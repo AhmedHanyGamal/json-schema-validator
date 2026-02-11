@@ -1,33 +1,47 @@
 export class JSONPointer {
     private segments: string[] = [];
-
+    
+    constructor(jsonPointer?: string | string[]) {
+        if (Array.isArray(jsonPointer)) {
+            this.segments = [...jsonPointer];
+            return;
+        }
+        else {
+            this.parse(jsonPointer);
+        }
+    }
+    
     push(segment: string): void {
         this.segments.push(segment);
-    }
+    }    
 
     pop(): string | undefined {
         return this.segments.pop();
+    }    
+    
+    fork(segment: string): JSONPointer {
+        return new JSONPointer([...this.segments, segment]);
+    }
+
+    reconstruct(jsonPointer?: string): void {
+        this.parse(jsonPointer);
     }
 
     toString(): string {
         if (this.segments.length === 0) {
             return "";
-        }
+        }        
 
         const escapedSegments: string[] = this.segments.map((segment) => escape(segment))
         return '/' + escapedSegments.join('/');
-    }
+    }        
 
-    constructor(jsonPointer?: string | string[]) {
+    private parse(jsonPointer?: string): void {
         if (jsonPointer === undefined || jsonPointer === "") {
+            this.segments = [];
             return;
         }
 
-        if (Array.isArray(jsonPointer)) {
-            this.segments = [...jsonPointer];
-            return;
-        }
-        
         if (!jsonPointer.startsWith('/')) {
             throw new Error("invalid json pointer: invalid format, add '/' at the start");
         }
@@ -35,35 +49,12 @@ export class JSONPointer {
         jsonPointer = jsonPointer.slice(1);
         this.segments = jsonPointer.split('/').map((segment) => unescape(segment));
     }
-
-
-    fork(segment: string): JSONPointer {
-        return new JSONPointer([...this.segments, segment]);
-    }
 }
 
 export class AbsoluteJSONPointer {
     private uri: string = "";
     private fragmentSegments: string[] = [];
-
-    push(segment: string): void {
-        this.fragmentSegments.push(segment);
-    }
-
-    pop(): string | undefined {
-        return this.fragmentSegments.pop();
-    }
-
-    toString(): string {
-        const absoluteJSONPointer: string = this.uri + '#';
-
-        if (this.fragmentSegments.length === 0) {
-            return absoluteJSONPointer;
-        }
-        const escapedSegments = this.fragmentSegments.map((segment) => escape(segment));
-        return absoluteJSONPointer + '/' + escapedSegments.join('/');
-    }
-
+    
     constructor(absoluteJsonPointer: string, segments?: string[]) {
         const hashIndex = absoluteJsonPointer.indexOf('#');
 
@@ -92,9 +83,32 @@ export class AbsoluteJSONPointer {
         this.fragmentSegments = [...this.fragmentSegments, ...additionalSegments];
     }
 
+    push(segment: string): void {
+        this.fragmentSegments.push(segment);
+    }    
+
+    pop(): string | undefined {
+        return this.fragmentSegments.pop();
+    }    
+
     fork(segment: string): AbsoluteJSONPointer {
         return new AbsoluteJSONPointer(this.uri + '#', [...this.fragmentSegments, segment]);
     }
+
+    resetToBaseUri(uri: string): void {
+        this.uri = uri;
+        this.fragmentSegments = [];
+    }
+    
+    toString(): string {
+        const absoluteJSONPointer: string = this.uri + '#';
+
+        if (this.fragmentSegments.length === 0) {
+            return absoluteJSONPointer;
+        }    
+        const escapedSegments = this.fragmentSegments.map((segment) => escape(segment));
+        return absoluteJSONPointer + '/' + escapedSegments.join('/');
+    }    
 }
 
 
