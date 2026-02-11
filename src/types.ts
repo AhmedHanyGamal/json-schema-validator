@@ -12,28 +12,28 @@ export interface KeywordRegistry {
 
 
 
-interface basicBaseUnit {
+interface BasicBaseUnit {
     valid: boolean;
     evaluationPath: JSONPointer; // May change to AbsoluteJSONPointer, will see once I start working on `$ref`, `$dynamicRef` and similar keywords
     schemaLocation: AbsoluteJSONPointer; 
     instanceLocation: JSONPointer; 
 }
 
-export interface basicSuccessUnit extends basicBaseUnit {
+export interface BasicSuccessUnit extends BasicBaseUnit {
     valid: true;
     annotations: Record<string, any>;
 }
 
-export interface basicFailUnit extends basicBaseUnit {
+export interface BasicFailUnit extends BasicBaseUnit {
     valid: false;
     errors: Record<string, string>;
 }
 
-export type outputUnit = basicSuccessUnit | basicFailUnit
+export type OutputUnit = BasicSuccessUnit | BasicFailUnit
 
-export type basicOutput = {
+export type BasicOutput = {
     valid: boolean;
-    details: outputUnit[];
+    details: OutputUnit[];
 }
 
 
