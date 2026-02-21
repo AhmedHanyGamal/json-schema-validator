@@ -19,8 +19,12 @@ export class JSONPointer {
         return this.segments.pop();
     }    
     
-    fork(segment: string): JSONPointer {
-        return new JSONPointer([...this.segments, segment]);
+    fork(segment?: string): JSONPointer {
+        const segments = [...this.segments];
+        if (segment !== undefined) {
+            segments.push(segment);
+        }
+        return new JSONPointer(segments);
     }
 
     reconstruct(jsonPointer?: string): void {
@@ -91,8 +95,12 @@ export class AbsoluteJSONPointer {
         return this.fragmentSegments.pop();
     }    
 
-    fork(segment: string): AbsoluteJSONPointer {
-        return new AbsoluteJSONPointer(this.uri + '#', [...this.fragmentSegments, segment]);
+    fork(segment?: string): AbsoluteJSONPointer {
+        const fragment = [...this.fragmentSegments]
+        if (segment !== undefined) {
+            fragment.push(segment);
+        }
+        return new AbsoluteJSONPointer(this.uri + '#', fragment);
     }
 
     resetToBaseUri(uri: string): void {
