@@ -67,7 +67,7 @@ export class AbsoluteJSONPointer {
 
         this.uri = rawUri;
 
-        const additionalSegments: string[] = segments === undefined? [] : segments;
+        const additionalSegments: string[] = segments? [...segments] : [];
 
         if (rawFragment === "") {
             this.fragmentSegments = additionalSegments;
