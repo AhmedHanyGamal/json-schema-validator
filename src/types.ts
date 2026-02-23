@@ -12,6 +12,12 @@ export interface KeywordRegistry {
 
 
 
+export interface EvaluationLocation {
+    evaluationPath: JSONPointer; // May change to AbsoluteJSONPointer, will see once I start working on `$ref`, `$dynamicRef` and similar keywords
+    schemaLocation: AbsoluteJSONPointer;
+    instanceLocation: JSONPointer;
+}
+
 export interface BasicBaseUnit {
     evaluationPath: JSONPointer; // May change to AbsoluteJSONPointer, will see once I start working on `$ref`, `$dynamicRef` and similar keywords
     schemaLocation: AbsoluteJSONPointer; 
