@@ -1,5 +1,5 @@
 // import type {DraftKeywordsContainer} from "./types.js"
-import type { BasicPendingUnit, JSONValue, KeywordHandler, KeywordRegistry, OutputUnit } from "./types.js";
+import type { BasicBaseUnit, BasicPendingUnit, EvaluationLocation, JSONValue, KeywordHandler, KeywordRegistry, OutputUnit } from "./types.js";
 import type { Schema, BasicOutput, BasicSuccessUnit, BasicFailUnit } from "./types.js";
 import draft2020_12 from "./drafts/2020-12.js";
 import { JSONPointer, AbsoluteJSONPointer } from "./utils/JSONPointer.js";
@@ -11,62 +11,70 @@ let draft: KeywordRegistry = draft2020_12;
 
 export function validate(schema: Schema, instance: JSONValue): BasicOutput {
 
+    // (TASK) validate schema and make sure it's correct before you begin validation
+
     
     const ctx: ValidationContext = new ValidationContext()
-    validateSchema(schema, instance, ctx);
+    const isValid = ctx.evaluate(schema, instance, ctx.createRootLocation());
 
-
-
-    return {
-        valid: true,
-        details: []
-    };
+    return ctx.createOutput(isValid);
 }
 
-
-function validateSchema(schema: Schema, instance: JSONValue, ctx: ValidationContext) {
-    if (schema === null) {
-        return;
-    }
-
-    for (const [keyword, schemaValue] of Object.entries(schema)) {
-        const handler: KeywordHandler | undefined = draft[keyword];
-
-        if(!handler) {
-            continue;
-        }
-
-        handler(schemaValue, instance, ctx);
-    }
-}
 
 
 export class ValidationContext {
     details: OutputUnit[] = []
 
-    evaluationPath: JSONPointer = new JSONPointer();
-    schemaLocation: AbsoluteJSONPointer = new AbsoluteJSONPointer("https://json-default/base#");
-    instanceLocation: JSONPointer = new JSONPointer();
+
+    evaluate(schema: Schema, instance: JSONValue, evaluationLocation: EvaluationLocation): boolean {
+        const pendingUnit: BasicPendingUnit = this.createUnit(evaluationLocation);
+
+        if (schema === true) {
+            this.finalizeUnit(pendingUnit, true);
+            return true;
+        }
+
+        if (schema === false) {
+            pendingUnit.errors["falseSchema"] = "schema is 'false'";
+            this.finalizeUnit(pendingUnit, false);
+            return false;
+        }
 
 
+        
+        let isValid = true;
+        for (const [keyword, schemaValue] of Object.entries(schema)) {
+            const handler: KeywordHandler | undefined = draft[keyword];
 
-    validateSchema(schema: Schema, instance: JSONValue, ctx: ValidationContext) {
-        validateSchema(schema, instance, ctx);
+            if(!handler) { // (TASK) deal with this case in a more suitable manner
+                continue;
+            }
+
+            const result = handler(schemaValue, instance, this, pendingUnit);
+
+            if (!result) {
+                isValid = false;
+            }
+        }
+
+
+        this.finalizeUnit(pendingUnit, isValid);
+        return isValid;
     }
 
-    createUnit(valid?: boolean): BasicPendingUnit {
+
+    createUnit(evaluationLocation: EvaluationLocation): BasicPendingUnit {
         return {
-            valid: valid ?? true,
-            evaluationPath: this.evaluationPath.fork(),
-            schemaLocation: this.schemaLocation.fork(),
-            instanceLocation: this.instanceLocation.fork(),
+            evaluationPath: evaluationLocation.evaluationPath.fork(),
+            schemaLocation: evaluationLocation.schemaLocation.fork(),
+            instanceLocation: evaluationLocation.instanceLocation.fork(),
             errors: {},
             annotations: {}
         }
     }
 
-    processAndAddUnit(basicUnit: BasicPendingUnit): void {
-        if (this.isEmptyObject(basicUnit.errors)) {
+    finalizeUnit(basicUnit: BasicPendingUnit, isValid: boolean): void {
+        if (isValid) {
             this.details.push({
                 valid: true,
                 evaluationPath: basicUnit.evaluationPath.fork(),
@@ -86,8 +94,44 @@ export class ValidationContext {
         }
     }
 
+    createOutput(isValid: boolean): BasicOutput {
+        if (isValid) {
+            return {
+                valid: true,
+                details: this.details.filter((unit) => unit.valid === true)
+            }
+        }
+        else {
+            return {
+                valid: false,
+                details: this.details.filter((unit) => unit.valid === false)
+            }
+        }
+    }
 
-    private isEmptyObject(obj: object): boolean {
-        return Object.keys(obj).length === 0;
+    createRootLocation(): EvaluationLocation {
+        const evaluationPath: JSONPointer = new JSONPointer();
+        const schemaLocation: AbsoluteJSONPointer = new AbsoluteJSONPointer("https://json-default/base#");
+        const instanceLocation: JSONPointer = new JSONPointer();
+        
+        return { evaluationPath, schemaLocation, instanceLocation };
+    }
+    
+    forkLocation(evaluationLocation: EvaluationLocation, evaluationPathSegment: string[], schemaLocationSegment: string[], instanceLocationSegment: string[]): EvaluationLocation {
+        const evaluationPath = evaluationLocation.evaluationPath.fork(...evaluationPathSegment);
+        const schemaLocation = evaluationLocation.schemaLocation.fork(...schemaLocationSegment);
+        const instanceLocation = evaluationLocation.instanceLocation.fork(...instanceLocationSegment);
+        
+        return { evaluationPath, schemaLocation, instanceLocation };
+    }
+    
+    forkLocationFromOutputUnit(unit: BasicBaseUnit, evaluationPathSegment: string[], schemaLocationSegment: string[], instanceLocationSegment: string[]): EvaluationLocation {
+        const evaluationLocation: EvaluationLocation = { 
+            evaluationPath: unit.evaluationPath, 
+            schemaLocation: unit.schemaLocation, 
+            instanceLocation: unit.instanceLocation 
+        }
+        
+        return this.forkLocation(evaluationLocation, evaluationPathSegment, schemaLocationSegment, instanceLocationSegment);
     }
 }
