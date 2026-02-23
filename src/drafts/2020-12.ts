@@ -1,41 +1,117 @@
-import type { KeywordRegistry, Schema, JSONValue } from "../types.js";
-import type { ValidationContext } from "../validator.js";
+import type { KeywordRegistry, Schema, JSONValue, BasicPendingUnit } from "../types.js";
+import { ValidationContext } from "../validator.js";
 
 
 const draft: KeywordRegistry = {
-    // "$schema": (schema: Schema, instance: JSONValue) => {},
-    // "type": (schema: Schema, instance: JSONValue, ctx: ValidationContext) => {},
-    "$schema": (schema: unknown, instance: JSONValue) => {},
-    "type": (schema: unknown, instance: JSONValue, ctx: ValidationContext) => {
-        if (typeof schema !== "string" && !(Array.isArray(schema) && schema.every((item) => typeof item === "string"))) {
-            return; // the schema is wrong, since the value for the `type` keyword can only be either a string or an array of strings
-            // (TASK) deal with this case in a more suitable manner
-        }
-
-        if(schema === "array" && Array.isArray(instance)) {
-            return;
-        }
-
-        if (schema === "null" && instance === null) {
-            return;
-        }
-
-        if (schema === "integer" && typeof instance === "number" && instance === Math.floor(instance)) {
-            return;
-        }
-
-        if (schema === "object" && Array.isArray(instance)) {
-            ctx.errors.push({valid: false})
-            return;
-        }
-
-        if (schema === typeof instance) {
-            return;
-        }
-
-        ctx.errors.push({valid: false});
-    },
+    "type": type_2020_12,
+    "required": required_2020_12,
+    "properties": properties_2020_12,
 }
+
+
+
+function type_2020_12(schema: (string | string[]), instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    if (typeof schema === "string") {
+        const isValid = typeValidation(schema, instance);
+        if (!isValid) {
+            pendingUnit.errors["type"] = "incorrect instance type";
+            return false;
+        }
+
+        return true;
+    }
+    else {
+        for (const allowedType of schema) {
+            const isValid = typeValidation(allowedType, instance);
+            if(isValid) {
+                return true;
+            }
+        }
+
+        pendingUnit.errors["type"] = "incorrect instance type";
+        return false;
+    }
+}
+
+function typeValidation(schema: string, instance: JSONValue): boolean {
+    if (schema === "string" && typeof instance === "string") {
+        return true;
+    }
+
+    if (schema === "integer" && Number.isInteger(instance)) {
+        return true;
+    }
+
+    if (schema === "number" && typeof instance === "number") {
+        return true;
+    }    
+
+    if (schema === "object" && typeof instance === "object" && instance !== null && !Array.isArray(instance)) {
+        return true;        
+    }
+
+    if(schema === "array" && Array.isArray(instance)) {
+        return true;
+    }
+
+    if (schema === "boolean" && typeof instance === "boolean") {
+        return true;
+    }
+
+    if (schema === "null" && instance === null) {
+        return true;
+    }
+
+    return false;
+}
+
+
+function required_2020_12(schema: string[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    if(!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
+        return true;
+    }
+
+    const missingProperties: string[] = [];
+
+    for (const requiredProperty of schema) {
+        if (!Object.hasOwn(instance, requiredProperty)) {
+            missingProperties.push(requiredProperty);
+        }
+    }
+
+    if (missingProperties.length !== 0) {
+        pendingUnit.errors["required"] = `Required properties [${missingProperties}] were not present`;
+        return false;
+    }
+
+    return true;
+}
+
+function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
+        return true;
+    }
+
+    let isValid = true;
+    const presentProperties: string[] = [];
+    Object.entries(schema).forEach(([key, value]) => {
+        if (Object.hasOwn(instance, key)) {
+            presentProperties.push(key);
+            const result = ctx.evaluate(value, instance[key]!, ctx.forkLocationFromOutputUnit(pendingUnit, ["properties", key], ["properties", key], [key])); // (TASK) update the JSON Pointer classes and update this filth
+
+            if (!result) {
+                isValid = false;
+            }
+        }
+    })
+
+    if (presentProperties.length !== 0) {
+        pendingUnit.annotations["properties"] = presentProperties;
+    }
+
+    return isValid;
+}
+
 
 
 
