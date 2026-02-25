@@ -6,6 +6,7 @@ const draft: KeywordRegistry = {
     "type": type_2020_12,
     "required": required_2020_12,
     "properties": properties_2020_12,
+    "allOf": allOf_2020_12,
 }
 
 
@@ -87,6 +88,7 @@ function required_2020_12(schema: string[], instance: JSONValue, ctx: Validation
     return true;
 }
 
+
 function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
     if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
         return true;
@@ -108,6 +110,20 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
     if (presentProperties.length !== 0) {
         pendingUnit.annotations["properties"] = presentProperties;
     }
+
+    return isValid;
+}
+
+
+function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    let isValid = true;
+    schemas.forEach((subSchema, index) => {
+        const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
+
+        if (!result) {
+            isValid = false;
+        }
+    })
 
     return isValid;
 }
