@@ -8,6 +8,7 @@ const draft: KeywordRegistry = {
     "properties": properties_2020_12,
     "allOf": allOf_2020_12,
     "anyOf": anyOf_2020_12,
+    "oneOf": oneOf_2020_12,
 }
 
 
@@ -129,6 +130,7 @@ function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
     return isValid;
 }
 
+
 function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
     let isValid = false;
     schemas.forEach((subSchema, index) => {
@@ -142,6 +144,20 @@ function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
     return isValid;
 }
 
+
+function oneOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    let validSubSchemas = 0;
+    schemas.forEach((subSchema, index) => {
+        const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
+
+        if (result) {
+            validSubSchemas++;
+        }
+    })
+
+    const isValid = validSubSchemas === 1;
+    return isValid;
+}
 
 
 
