@@ -37,6 +37,9 @@ export interface BasicFailUnit extends BasicBaseUnit {
 export interface BasicPendingUnit extends BasicBaseUnit {
     annotations: Record<string, any>;
     errors: Record<string, string>;
+
+    evaluatedProperties: Set<string>;
+    evaluatedItems: Set<number>;
 }
 
 export interface EvaluationResult {

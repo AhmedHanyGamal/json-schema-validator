@@ -77,8 +77,18 @@ export class ValidationContext {
             schemaLocation: evaluationLocation.schemaLocation.fork(),
             instanceLocation: evaluationLocation.instanceLocation.fork(),
             errors: {},
-            annotations: {}
+            annotations: {},
+            evaluatedProperties: new Set<string>(),
+            evaluatedItems: new Set<number>(),
         }
+    }
+
+    unionEvaluatedProperties(set1: Set<string>, set2: Set<string>): Set<string> {
+        return new Set([...set1, ...set2]);
+    }
+
+    unionEvaluatedItems(set1: Set<number>, set2: Set<number>): Set<number> {
+        return new Set([...set1, ...set2].sort());
     }
 
     finalizeUnit(basicUnit: BasicPendingUnit, isValid: boolean): void {
