@@ -100,17 +100,20 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
     const presentProperties: string[] = [];
     Object.entries(schema).forEach(([key, value]) => {
         if (Object.hasOwn(instance, key)) {
-            presentProperties.push(key);
-            const result = ctx.evaluate(value, instance[key]!, ctx.forkLocationFromOutputUnit(pendingUnit, ["properties", key], ["properties", key], [key])); // (TASK) update the JSON Pointer classes and update this filth
+            const result = ctx.evaluate(value, instance[key]!, ctx.forkLocationFromOutputUnit(pendingUnit, ["properties", key], ["properties", key], [key]));
 
-            if (!result) {
+            if (result.valid) {
+                presentProperties.push(key);
+            }
+            else {
                 isValid = false;
             }
         }
     })
 
-    if (presentProperties.length !== 0) {
+    if (isValid && presentProperties.length !== 0) {
         pendingUnit.annotations["properties"] = presentProperties;
+        presentProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
     }
 
     return isValid;
@@ -119,13 +122,24 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
 
 function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
     let isValid = true;
+    let evaluatedProperties: Set<string> = new Set();
+    let evaluatedItems: Set<number> = new Set();
     schemas.forEach((subSchema, index) => {
         const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
 
-        if (!result) {
+        if (result.valid) {
+            evaluatedProperties = ctx.unionEvaluatedProperties(evaluatedProperties, result.unit.evaluatedProperties);
+            evaluatedItems = ctx.unionEvaluatedItems(evaluatedItems, result.unit.evaluatedItems);
+        }
+        else {
             isValid = false;
         }
     })
+
+    if (isValid) {
+        pendingUnit.evaluatedProperties = ctx.unionEvaluatedProperties(pendingUnit.evaluatedProperties, evaluatedProperties);
+        pendingUnit.evaluatedItems = ctx.unionEvaluatedItems(pendingUnit.evaluatedItems, evaluatedItems);
+    }
 
     return isValid;
 }
@@ -133,13 +147,22 @@ function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
 
 function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
     let isValid = false;
+    let evaluatedProperties: Set<string> = new Set();
+    let evaluatedItems: Set<number> = new Set();
     schemas.forEach((subSchema, index) => {
         const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
 
-        if (result) {
+        if (result.valid) {
             isValid = true;
+            evaluatedProperties = ctx.unionEvaluatedProperties(evaluatedProperties, result.unit.evaluatedProperties);
+            evaluatedItems = ctx.unionEvaluatedItems(evaluatedItems, result.unit.evaluatedItems);
         }
     })
+
+    if (isValid) {
+        pendingUnit.evaluatedProperties = ctx.unionEvaluatedProperties(pendingUnit.evaluatedProperties, evaluatedProperties);
+        pendingUnit.evaluatedItems = ctx.unionEvaluatedItems(pendingUnit.evaluatedItems, evaluatedItems);
+    }
 
     return isValid;
 }
@@ -147,15 +170,25 @@ function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
 
 function oneOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
     let validSubSchemas = 0;
+    let evaluatedProperties: Set<string> = new Set();
+    let evaluatedItems: Set<number> = new Set();
     schemas.forEach((subSchema, index) => {
         const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
 
-        if (result) {
+        if (result.valid) {
             validSubSchemas++;
+            evaluatedProperties = ctx.unionEvaluatedProperties(evaluatedProperties, result.unit.evaluatedProperties);
+            evaluatedItems = ctx.unionEvaluatedItems(evaluatedItems, result.unit.evaluatedItems);
         }
     })
 
     const isValid = validSubSchemas === 1;
+
+    if (isValid) {
+        pendingUnit.evaluatedProperties = ctx.unionEvaluatedProperties(pendingUnit.evaluatedProperties, evaluatedProperties);
+        pendingUnit.evaluatedItems = ctx.unionEvaluatedItems(pendingUnit.evaluatedItems, evaluatedItems);
+    }
+
     return isValid;
 }
 
