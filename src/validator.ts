@@ -1,5 +1,5 @@
 // import type {DraftKeywordsContainer} from "./types.js"
-import type { BasicBaseUnit, BasicPendingUnit, EvaluationLocation, JSONValue, KeywordHandler, KeywordRegistry, OutputUnit } from "./types.js";
+import type { BasicBaseUnit, BasicPendingUnit, EvaluationLocation, EvaluationResult, JSONValue, KeywordHandler, KeywordRegistry, OutputUnit } from "./types.js";
 import type { Schema, BasicOutput, BasicSuccessUnit, BasicFailUnit } from "./types.js";
 import draft2020_12 from "./drafts/2020-12.js";
 import { JSONPointer, AbsoluteJSONPointer } from "./utils/JSONPointer.js";
@@ -15,7 +15,7 @@ export function validate(schema: Schema, instance: JSONValue): BasicOutput {
 
     
     const ctx: ValidationContext = new ValidationContext()
-    const isValid = ctx.evaluate(schema, instance, ctx.createRootLocation());
+    const isValid = ctx.evaluate(schema, instance, ctx.createRootLocation()).valid;
 
     return ctx.createOutput(isValid);
 }
@@ -26,18 +26,23 @@ export class ValidationContext {
     details: OutputUnit[] = []
 
 
-    evaluate(schema: Schema, instance: JSONValue, evaluationLocation: EvaluationLocation): boolean {
+    evaluate(schema: Schema, instance: JSONValue, evaluationLocation: EvaluationLocation): EvaluationResult {
         const pendingUnit: BasicPendingUnit = this.createUnit(evaluationLocation);
 
-        if (schema === true) {
+        if (schema === true || schema === null) {
             this.finalizeUnit(pendingUnit, true);
-            return true;
+            return {
+                valid: true,
+                unit: pendingUnit
+            };
         }
 
         if (schema === false) {
-            pendingUnit.errors["falseSchema"] = "schema is 'false'";
             this.finalizeUnit(pendingUnit, false);
-            return false;
+            return {
+                valid:false, 
+                unit: pendingUnit
+            };
         }
 
 
@@ -59,7 +64,10 @@ export class ValidationContext {
 
 
         this.finalizeUnit(pendingUnit, isValid);
-        return isValid;
+        return {
+            valid: isValid,
+            unit: pendingUnit
+        };
     }
 
 

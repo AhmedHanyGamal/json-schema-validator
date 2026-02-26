@@ -39,6 +39,11 @@ export interface BasicPendingUnit extends BasicBaseUnit {
     errors: Record<string, string>;
 }
 
+export interface EvaluationResult {
+    valid: boolean;
+    unit: BasicPendingUnit;
+}
+
 export type OutputUnit = BasicSuccessUnit | BasicFailUnit
 
 export type BasicOutput = {
