@@ -116,9 +116,8 @@ const escape = (str: string): string => str.replaceAll('~', '~0').replaceAll('/'
 
 const unescape = (str: string): string => {
     // for you savvy spec enjoyers out there
-    if (str.search(/~(?![01])/) !== -1) {
+    if (/~(?![01])/.test(str)) {
         throw new Error("invalid unescape: `~` has to be followed by either 0 or 1");
-        
     }
 
     return str.replaceAll('~1', '/').replaceAll('~0', '~');
