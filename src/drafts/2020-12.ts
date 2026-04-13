@@ -12,6 +12,7 @@ const draft: Draft = {
         "allOf": { phase: "phase3", handler: allOf_2020_12 },
         "anyOf": { phase: "phase3", handler: anyOf_2020_12 },
         "oneOf": { phase: "phase3", handler: oneOf_2020_12 },
+        "additionalProperties": { phase: "phase2", handler: additionalProperties_2020_12},
     }
 }
 
@@ -267,6 +268,37 @@ function oneOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
 }
 
 
+function additionalProperties_2020_12(schema: Schema, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
+        return true;
+    }
+
+    const evaluatedProperties: Set<string> = new Set<string>([...(pendingUnit.annotations["properties"] ?? []), ...(pendingUnit.annotations["patternProperties"] ?? [])]);
+
+    let isValid = true;
+    const validAdditionalProperties: string[] = [];
+    for (const [instanceKey, instanceValue] of Object.entries(instance)) {
+        if (evaluatedProperties.has(instanceKey)) {
+            continue;
+        }
+
+        const result = ctx.evaluate(schema, instanceValue, ctx.forkLocationFromOutputUnit(pendingUnit, ["additionalProperties"], ["additionalProperties"], [instanceKey]));
+
+        if (result.valid) {
+            validAdditionalProperties.push(instanceKey);
+        }
+        else {
+            isValid = false;
+        }
+    }
+
+    if (isValid) {
+        pendingUnit.annotations["additionalProperties"] = validAdditionalProperties;
+        validAdditionalProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
+    }
+
+    return isValid;
+}
 
 
 export default draft;
