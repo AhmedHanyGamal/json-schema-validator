@@ -20,7 +20,7 @@ function type_2020_12(schema: (string | string[]), instance: JSONValue, ctx: Val
     if (typeof schema === "string") {
         const isValid = typeValidation(schema, instance);
         if (!isValid) {
-            pendingUnit.errors["type"] = "incorrect instance type";
+            pendingUnit.errors["type"] = `instance type should be ${schema}, found ${instanceType(instance)}`;
             return false;
         }
 
@@ -34,7 +34,7 @@ function type_2020_12(schema: (string | string[]), instance: JSONValue, ctx: Val
             }
         }
 
-        pendingUnit.errors["type"] = "incorrect instance type";
+        pendingUnit.errors["type"] = `instance type should be ${schema}, found ${instanceType(instance)}`;
         return false;
     }
 }
@@ -69,6 +69,38 @@ function typeValidation(schema: string, instance: JSONValue): boolean {
     }
 
     return false;
+}
+
+function instanceType(instance: JSONValue): JSONValue {
+    if (typeof instance === "string") {
+        return "string";
+    }
+
+    if (Number.isInteger(instance)) {
+        return "integer";
+    }
+
+    if (typeof instance === "number") {
+        return "number";
+    }    
+
+    if (typeof instance === "object" && instance !== null && !Array.isArray(instance)) {
+        return "object";        
+    }
+
+    if(Array.isArray(instance)) {
+        return "array";
+    }
+
+    if (typeof instance === "boolean") {
+        return "boolean";
+    }
+
+    if (instance === null) {
+        return "null";
+    }
+
+    return "unknown";
 }
 
 
