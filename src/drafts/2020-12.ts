@@ -1,14 +1,17 @@
-import type { KeywordRegistry, Schema, JSONValue, BasicPendingUnit } from "../types.js";
+import type { Schema, JSONValue, BasicPendingUnit, Draft } from "../types.js";
 import { ValidationContext } from "../validator.js";
 
 
-const draft: KeywordRegistry = {
-    "type": type_2020_12,
-    "required": required_2020_12,
-    "properties": properties_2020_12,
-    "allOf": allOf_2020_12,
-    "anyOf": anyOf_2020_12,
-    "oneOf": oneOf_2020_12,
+const draft: Draft = {
+    phaseOrder: [ "phase1", "phase2", "phase3", "phase4" ], // phasing is INCREDIBLY IMPORTANT, choosing an incorrect phase for a keyword could destroy the entire system
+    keywords: {
+        "type": { phase: "phase1", handler: type_2020_12 },
+        "required": { phase: "phase1", handler: required_2020_12 },
+        "properties": { phase: "phase1", handler: properties_2020_12 },
+        "allOf": { phase: "phase3", handler: allOf_2020_12 },
+        "anyOf": { phase: "phase3", handler: anyOf_2020_12 },
+        "oneOf": { phase: "phase3", handler: oneOf_2020_12 },
+    }
 }
 
 
@@ -111,7 +114,7 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
         }
     })
 
-    if (isValid && presentProperties.length !== 0) {
+    if (isValid) {
         pendingUnit.annotations["properties"] = presentProperties;
         presentProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
     }

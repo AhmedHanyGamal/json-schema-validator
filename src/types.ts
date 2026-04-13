@@ -2,13 +2,21 @@ import { ValidationContext } from "./validator.js";
 import { JSONPointer, AbsoluteJSONPointer } from "./utils/JSONPointer.js";
 
 
+export interface Draft {
+    phaseOrder: EvaluationPhase[];
+    keywords: Record<string, KeywordDefinition>;
+}
+
+interface KeywordDefinition {
+    phase: EvaluationPhase;
+    handler: KeywordHandler;
+}
+        
 export interface KeywordHandler {
     (schema: any, instance: JSONValue, context: ValidationContext, pendingUnit: BasicPendingUnit): boolean;
 }
 
-export interface KeywordRegistry {
-    [key: string]: KeywordHandler;
-}
+export type EvaluationPhase = string;
 
 
 

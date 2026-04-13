@@ -1,12 +1,12 @@
 // import type {DraftKeywordsContainer} from "./types.js"
-import type { BasicBaseUnit, BasicPendingUnit, EvaluationLocation, EvaluationResult, JSONValue, KeywordHandler, KeywordRegistry, OutputUnit } from "./types.js";
+import type { BasicBaseUnit, BasicPendingUnit, EvaluationLocation, EvaluationPhase, EvaluationResult, JSONValue, KeywordHandler, Draft, OutputUnit } from "./types.js";
 import type { Schema, BasicOutput, BasicSuccessUnit, BasicFailUnit } from "./types.js";
 import draft2020_12 from "./drafts/2020-12.js";
 import { JSONPointer, AbsoluteJSONPointer } from "./utils/JSONPointer.js";
 
 // const draftContainer: DraftKeywordsContainer = {"2020-12": draft2020_12}
 
-let draft: KeywordRegistry = draft2020_12;
+let draft: Draft = draft2020_12;
 
 
 export function validate(schema: Schema, instance: JSONValue): BasicOutput {
@@ -23,8 +23,8 @@ export function validate(schema: Schema, instance: JSONValue): BasicOutput {
 
 
 export class ValidationContext {
-    details: OutputUnit[] = []
-
+    private PHASE_ORDER: EvaluationPhase[] = draft.phaseOrder;
+    private details: OutputUnit[] = []
 
     evaluate(schema: Schema, instance: JSONValue, evaluationLocation: EvaluationLocation): EvaluationResult {
         const pendingUnit: BasicPendingUnit = this.createUnit(evaluationLocation);
@@ -48,17 +48,24 @@ export class ValidationContext {
 
         
         let isValid = true;
-        for (const [keyword, schemaValue] of Object.entries(schema)) {
-            const handler: KeywordHandler | undefined = draft[keyword];
+        for (const phase of draft.phaseOrder) {
+            for (const [keyword, schemaValue] of Object.entries(schema)) {
+                const entry = draft.keywords[keyword];
+                if (!entry) { // (TASK) deal with this case in a more suitable manner
+                    continue;
+                }
+                
+                const { phase: keywordPhase, handler } = entry;
+                
+                if (keywordPhase !== phase) {
+                    continue;
+                }
 
-            if(!handler) { // (TASK) deal with this case in a more suitable manner
-                continue;
-            }
-
-            const result = handler(schemaValue, instance, this, pendingUnit);
-
-            if (!result) {
-                isValid = false;
+                const result = handler(schemaValue, instance, this, pendingUnit);
+                
+                if (!result) {
+                    isValid = false;
+                }
             }
         }
 
