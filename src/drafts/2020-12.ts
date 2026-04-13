@@ -13,6 +13,7 @@ const draft: Draft = {
         "anyOf": { phase: "phase3", handler: anyOf_2020_12 },
         "oneOf": { phase: "phase3", handler: oneOf_2020_12 },
         "additionalProperties": { phase: "phase2", handler: additionalProperties_2020_12},
+        "unevaluatedProperties": { phase: "phase4", handler: unevaluatedProperties_2020_12}
     }
 }
 
@@ -295,6 +296,42 @@ function additionalProperties_2020_12(schema: Schema, instance: JSONValue, ctx: 
     if (isValid) {
         pendingUnit.annotations["additionalProperties"] = validAdditionalProperties;
         validAdditionalProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
+    }
+
+    return isValid;
+}
+
+
+function unevaluatedProperties_2020_12(schema: Schema, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
+        return true;
+    }
+
+    const evaluatedProperties: Set<string> = new Set<string>(pendingUnit.evaluatedProperties);
+
+    let isValid = true;
+    const validUnevaluatedProperties: string[] = [];
+    for (const [instanceKey, instanceValue] of Object.entries(instance)) {
+        if (evaluatedProperties.has(instanceKey)) {
+            continue;
+        }
+
+        // (TASK) focus on the location here, as one is the relative location and the other is the absolute location
+        // Go to the Greg Dennis blog, see the original names of the locations in the spec, and see which one acted which way
+        // (TASK) Update all locations based on your findings
+        const result = ctx.evaluate(schema, instanceValue, ctx.forkLocationFromOutputUnit(pendingUnit, ["unevaluatedProperties"], ["unevaluatedProperties"], [instanceKey])) 
+
+        if (result.valid) {
+            validUnevaluatedProperties.push(instanceKey);
+        }
+        else {
+            isValid = false;
+        }
+    }
+
+    if (isValid) {
+        pendingUnit.annotations["unevaluatedProperties"] = validUnevaluatedProperties;
+        validUnevaluatedProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
     }
 
     return isValid;
