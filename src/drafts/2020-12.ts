@@ -8,6 +8,7 @@ const draft: Draft = {
         "type": { phase: "phase1", handler: type_2020_12 },
         "required": { phase: "phase1", handler: required_2020_12 },
         "properties": { phase: "phase1", handler: properties_2020_12 },
+        "patternProperties": { phase: "phase1", handler: patternProperties_2020_12 },
         "allOf": { phase: "phase3", handler: allOf_2020_12 },
         "anyOf": { phase: "phase3", handler: anyOf_2020_12 },
         "oneOf": { phase: "phase3", handler: oneOf_2020_12 },
@@ -149,6 +150,44 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
     if (isValid) {
         pendingUnit.annotations["properties"] = presentProperties;
         presentProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
+    }
+
+    return isValid;
+}
+
+
+function patternProperties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+    if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
+        return true;
+    }
+
+    const instanceEntries = Object.entries(instance);
+    const patterns = Object.entries(schema).map(([pattern, subSchema]) => ({ 
+        pattern, 
+        regex: new RegExp(pattern),
+        schema: subSchema
+    }))
+
+    let isValid = true;
+    const validatedProperties = new Set<string>();
+    for (const [instanceKey, instanceValue] of instanceEntries) {
+        for (const { pattern, regex, schema: subSchema} of patterns) {
+            if (regex.test(instanceKey)) {
+                const result = ctx.evaluate(subSchema, instanceValue, ctx.forkLocationFromOutputUnit(pendingUnit, [pattern], [pattern], [instanceKey]));
+
+                if (result.valid) {
+                    validatedProperties.add(instanceKey);
+                }
+                else {
+                    isValid = false;
+                }
+            }
+        }
+    }
+
+    if (isValid) {
+        pendingUnit.annotations["patternProperties"] = [...validatedProperties];
+        validatedProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
     }
 
     return isValid;
