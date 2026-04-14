@@ -1,4 +1,4 @@
-import type { Schema, JSONValue, BasicPendingUnit, Draft } from "../types.js";
+import type { Schema, JSONValue, BasicPendingUnit, Draft, EvaluationLocation } from "../types.js";
 import { ValidationContext } from "../validator.js";
 
 
@@ -9,17 +9,17 @@ const draft: Draft = {
         "required": { phase: "phase1", handler: required_2020_12 },
         "properties": { phase: "phase1", handler: properties_2020_12 },
         "patternProperties": { phase: "phase1", handler: patternProperties_2020_12 },
+        "additionalProperties": { phase: "phase2", handler: additionalProperties_2020_12},
         "allOf": { phase: "phase3", handler: allOf_2020_12 },
         "anyOf": { phase: "phase3", handler: anyOf_2020_12 },
         "oneOf": { phase: "phase3", handler: oneOf_2020_12 },
-        "additionalProperties": { phase: "phase2", handler: additionalProperties_2020_12},
         "unevaluatedProperties": { phase: "phase4", handler: unevaluatedProperties_2020_12}
     }
 }
 
 
 
-function type_2020_12(schema: (string | string[]), instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function type_2020_12(schema: (string | string[]), instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     if (typeof schema === "string") {
         const isValid = typeValidation(schema, instance);
         if (!isValid) {
@@ -107,7 +107,7 @@ function instanceType(instance: JSONValue): JSONValue {
 }
 
 
-function required_2020_12(schema: string[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function required_2020_12(schema: string[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     if(!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
         return true;
     }
@@ -129,7 +129,7 @@ function required_2020_12(schema: string[], instance: JSONValue, ctx: Validation
 }
 
 
-function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
         return true;
     }
@@ -138,7 +138,7 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
     const presentProperties: string[] = [];
     Object.entries(schema).forEach(([key, value]) => {
         if (Object.hasOwn(instance, key)) {
-            const result = ctx.evaluate(value, instance[key]!, ctx.forkLocationFromOutputUnit(pendingUnit, ["properties", key], ["properties", key], [key]));
+            const result = ctx.evaluate(value, instance[key]!, ctx.forkLocation(location, [key], [key], [key]));
 
             if (result.valid) {
                 presentProperties.push(key);
@@ -158,7 +158,7 @@ function properties_2020_12(schema: Record<string, Schema>, instance: JSONValue,
 }
 
 
-function patternProperties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function patternProperties_2020_12(schema: Record<string, Schema>, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
         return true;
     }
@@ -175,7 +175,7 @@ function patternProperties_2020_12(schema: Record<string, Schema>, instance: JSO
     for (const [instanceKey, instanceValue] of instanceEntries) {
         for (const { pattern, regex, schema: subSchema} of patterns) {
             if (regex.test(instanceKey)) {
-                const result = ctx.evaluate(subSchema, instanceValue, ctx.forkLocationFromOutputUnit(pendingUnit, [pattern], [pattern], [instanceKey]));
+                const result = ctx.evaluate(subSchema, instanceValue, ctx.forkLocation(location, [pattern], [pattern], [instanceKey]));
 
                 if (result.valid) {
                     validatedProperties.add(instanceKey);
@@ -196,12 +196,45 @@ function patternProperties_2020_12(schema: Record<string, Schema>, instance: JSO
 }
 
 
-function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function additionalProperties_2020_12(schema: Schema, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
+    if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
+        return true;
+    }
+
+    const evaluatedProperties: Set<string> = new Set<string>([...(pendingUnit.annotations["properties"] ?? []), ...(pendingUnit.annotations["patternProperties"] ?? [])]);
+
+    let isValid = true;
+    const validAdditionalProperties: string[] = [];
+    for (const [instanceKey, instanceValue] of Object.entries(instance)) {
+        if (evaluatedProperties.has(instanceKey)) {
+            continue;
+        }
+
+        const result = ctx.evaluate(schema, instanceValue, ctx.forkLocation(location, [], [], [instanceKey]));
+
+        if (result.valid) {
+            validAdditionalProperties.push(instanceKey);
+        }
+        else {
+            isValid = false;
+        }
+    }
+
+    if (isValid) {
+        pendingUnit.annotations["additionalProperties"] = validAdditionalProperties;
+        validAdditionalProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
+    }
+
+    return isValid;
+}
+
+
+function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     let isValid = true;
     let evaluatedProperties: Set<string> = new Set();
     let evaluatedItems: Set<number> = new Set();
     schemas.forEach((subSchema, index) => {
-        const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
+        const result = ctx.evaluate(subSchema, instance, ctx.forkLocation(location, [index.toString()], [index.toString()], []));
 
         if (result.valid) {
             evaluatedProperties = ctx.unionEvaluatedProperties(evaluatedProperties, result.unit.evaluatedProperties);
@@ -221,12 +254,12 @@ function allOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
 }
 
 
-function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     let isValid = false;
     let evaluatedProperties: Set<string> = new Set();
     let evaluatedItems: Set<number> = new Set();
     schemas.forEach((subSchema, index) => {
-        const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
+        const result = ctx.evaluate(subSchema, instance, ctx.forkLocation(location, [index.toString()], [index.toString()], []));
 
         if (result.valid) {
             isValid = true;
@@ -244,12 +277,12 @@ function anyOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
 }
 
 
-function oneOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function oneOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     let validSubSchemas = 0;
     let evaluatedProperties: Set<string> = new Set();
     let evaluatedItems: Set<number> = new Set();
     schemas.forEach((subSchema, index) => {
-        const result = ctx.evaluate(subSchema, instance, ctx.forkLocationFromOutputUnit(pendingUnit, [index.toString()], [index.toString()], []));
+        const result = ctx.evaluate(subSchema, instance, ctx.forkLocation(location, [index.toString()], [index.toString()], []));
 
         if (result.valid) {
             validSubSchemas++;
@@ -269,40 +302,7 @@ function oneOf_2020_12(schemas: Schema[], instance: JSONValue, ctx: ValidationCo
 }
 
 
-function additionalProperties_2020_12(schema: Schema, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
-    if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
-        return true;
-    }
-
-    const evaluatedProperties: Set<string> = new Set<string>([...(pendingUnit.annotations["properties"] ?? []), ...(pendingUnit.annotations["patternProperties"] ?? [])]);
-
-    let isValid = true;
-    const validAdditionalProperties: string[] = [];
-    for (const [instanceKey, instanceValue] of Object.entries(instance)) {
-        if (evaluatedProperties.has(instanceKey)) {
-            continue;
-        }
-
-        const result = ctx.evaluate(schema, instanceValue, ctx.forkLocationFromOutputUnit(pendingUnit, ["additionalProperties"], ["additionalProperties"], [instanceKey]));
-
-        if (result.valid) {
-            validAdditionalProperties.push(instanceKey);
-        }
-        else {
-            isValid = false;
-        }
-    }
-
-    if (isValid) {
-        pendingUnit.annotations["additionalProperties"] = validAdditionalProperties;
-        validAdditionalProperties.forEach((property) => pendingUnit.evaluatedProperties.add(property));
-    }
-
-    return isValid;
-}
-
-
-function unevaluatedProperties_2020_12(schema: Schema, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit): boolean {
+function unevaluatedProperties_2020_12(schema: Schema, instance: JSONValue, ctx: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean {
     if (!(typeof instance === "object" && instance !== null && !Array.isArray(instance))) {
         return true;
     }
@@ -316,10 +316,7 @@ function unevaluatedProperties_2020_12(schema: Schema, instance: JSONValue, ctx:
             continue;
         }
 
-        // (TASK) focus on the location here, as one is the relative location and the other is the absolute location
-        // Go to the Greg Dennis blog, see the original names of the locations in the spec, and see which one acted which way
-        // (TASK) Update all locations based on your findings
-        const result = ctx.evaluate(schema, instanceValue, ctx.forkLocationFromOutputUnit(pendingUnit, ["unevaluatedProperties"], ["unevaluatedProperties"], [instanceKey])) 
+        const result = ctx.evaluate(schema, instanceValue, ctx.forkLocation(location, [], [], [instanceKey])) 
 
         if (result.valid) {
             validUnevaluatedProperties.push(instanceKey);

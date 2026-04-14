@@ -61,7 +61,9 @@ export class ValidationContext {
                     continue;
                 }
 
-                const result = handler(schemaValue, instance, this, pendingUnit);
+                const keywordLocation = this.forkLocation(evaluationLocation, [keyword], [keyword], []);
+
+                const result = handler(schemaValue, instance, this, pendingUnit, keywordLocation);
                 
                 if (!result) {
                     isValid = false;

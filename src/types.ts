@@ -13,7 +13,7 @@ interface KeywordDefinition {
 }
         
 export interface KeywordHandler {
-    (schema: any, instance: JSONValue, context: ValidationContext, pendingUnit: BasicPendingUnit): boolean;
+    (schema: any, instance: JSONValue, context: ValidationContext, pendingUnit: BasicPendingUnit, location: EvaluationLocation): boolean;
 }
 
 export type EvaluationPhase = string;
