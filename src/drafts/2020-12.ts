@@ -2,18 +2,20 @@ import type { Schema, JSONValue, BasicPendingUnit, Draft, EvaluationLocation } f
 import { ValidationContext } from "../validator.js";
 
 
+// phasing and valueTypes are INCREDIBLY IMPORTANT, choosing incorrect values for them in a keyword could destroy the entire system
+// so give them extra care when adding keywords
 const draft: Draft = {
-    phaseOrder: [ "phase1", "phase2", "phase3", "phase4" ], // phasing is INCREDIBLY IMPORTANT, choosing an incorrect phase for a keyword could destroy the entire system
+    phaseOrder: [ "phase1", "phase2", "phase3", "phase4" ], // phases will be arranged based on their order in this array
     keywords: {
-        "type": { phase: "phase1", handler: type_2020_12 },
-        "required": { phase: "phase1", handler: required_2020_12 },
-        "properties": { phase: "phase1", handler: properties_2020_12 },
-        "patternProperties": { phase: "phase1", handler: patternProperties_2020_12 },
-        "additionalProperties": { phase: "phase2", handler: additionalProperties_2020_12},
-        "allOf": { phase: "phase3", handler: allOf_2020_12 },
-        "anyOf": { phase: "phase3", handler: anyOf_2020_12 },
-        "oneOf": { phase: "phase3", handler: oneOf_2020_12 },
-        "unevaluatedProperties": { phase: "phase4", handler: unevaluatedProperties_2020_12}
+        "type": { phase: "phase1", valueType: "other", handler: type_2020_12 },
+        "required": { phase: "phase1", valueType: "other", handler: required_2020_12 },
+        "properties": { phase: "phase1", valueType: "schema-map", handler: properties_2020_12 },
+        "patternProperties": { phase: "phase1", valueType: "schema-map", handler: patternProperties_2020_12 },
+        "additionalProperties": { phase: "phase2", valueType: "schema", handler: additionalProperties_2020_12},
+        "allOf": { phase: "phase3", valueType: "schema-array", handler: allOf_2020_12 },
+        "anyOf": { phase: "phase3", valueType: "schema-array", handler: anyOf_2020_12 },
+        "oneOf": { phase: "phase3", valueType: "schema-array", handler: oneOf_2020_12 },
+        "unevaluatedProperties": { phase: "phase4", valueType: "schema", handler: unevaluatedProperties_2020_12}
     }
 }
 
@@ -166,7 +168,7 @@ function patternProperties_2020_12(schema: Record<string, Schema>, instance: JSO
     const instanceEntries = Object.entries(instance);
     const patterns = Object.entries(schema).map(([pattern, subSchema]) => ({ 
         pattern, 
-        regex: new RegExp(pattern),
+        regex: new RegExp(pattern), // (TASK) add a "u" flag for unicode stuff
         schema: subSchema
     }))
 

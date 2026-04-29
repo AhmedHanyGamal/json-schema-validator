@@ -9,6 +9,7 @@ export interface Draft {
 
 interface KeywordDefinition {
     phase: EvaluationPhase;
+    valueType: SchemaValueType;
     handler: KeywordHandler;
 }
         
@@ -18,7 +19,13 @@ export interface KeywordHandler {
 
 export type EvaluationPhase = string;
 
+export type SchemaValueType = "schema" | "schema-array" | "schema-map" | "other";
 
+
+// export interface TraversalLocation {
+//     evaluationPath: JSONPointer; // May change to AbsoluteJSONPointer, will see once I start working on `$ref`, `$dynamicRef` and similar keywords
+//     schemaLocation: AbsoluteJSONPointer;
+// }
 
 export interface EvaluationLocation {
     evaluationPath: JSONPointer; // May change to AbsoluteJSONPointer, will see once I start working on `$ref`, `$dynamicRef` and similar keywords
